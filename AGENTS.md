@@ -17,8 +17,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 | shadcn/ui     | base-vega style    | Components in `src/components/shadcnui/`. Aliased as `@/components/shadcnui`                                                                                         |
 | Base UI React | ^1.6               | Primitive provider for shadcn components (e.g., `@base-ui/react/button`)                                                                                             |
 | Tailwind CSS  | ^4.3               | `@tailwindcss/postcss` plugin, `tw-animate-css`, `shadcn/tailwind.css`                                                                                               |
-| Zod           | ^4.4               | Schema validation                                                                                                                                                    |
-| env           | @t3-oss/env-nextjs | Split: `src/lib/env/serverEnv.ts` + `clientEnv.ts`                                                                                                                   |
+| Zod           | ^4.4               | Schema validation. Use `z.email()`, `z.url()` top-level formats                                                                                                     |
+| env           | @t3-oss/env-nextjs | Split: `src/lib/env/serverEnv.ts` + `clientEnv.ts`. This version does NOT auto-add `NODE_ENV` — declare it in the schema                                                                      |
+| Better Auth   | ^1.6               | Server: `src/lib/auth.ts`, client: `src/lib/auth-client.ts`. Adapter: `prismaAdapter` from `better-auth/adapters/prisma` (provider `"sqlite"`). Add `nextCookies()` plugin for RSC |
+| react-icons   | ^5.7               | Used for auth UI (Heroicons v2, e.g. `react-icons/hi2`)                                                                                                              |
+| react-toastify| ^11.1              | CSS import: `react-toastify/ReactToastify.css` (not `dist/...`). Provider: `src/components/Providers/ToastProvider.tsx`                                             |
+| react-hook-form | ^7.84           | + `@hookform/resolvers` for zod. See Form patterns below                                                                                                            |
 
 Path aliases: `@/*` → `./src/*`, `@generated/*` → `./generated/*`.
 
@@ -39,19 +43,27 @@ Path aliases: `@/*` → `./src/*`, `@generated/*` → `./generated/*`.
 ```
 src/
   app/              # App Router (layout.tsx, page.tsx, globals.css)
+    (auth)/         # Auth route group (sign-in, sign-up) with centered-card layout
+    api/auth/       # Better Auth route handler: [...all]/route.ts
   components/
+    auth/           # SignInForm, SignUpForm, SessionPanel
     Layout/         # Header, ThemeToggleButton
-    Providers/      # ThemeProvider (next-themes)
-    shadcnui/       # shadcn primitives (button.tsx, toast.tsx)
+    Providers/      # ThemeProvider (next-themes), ToastProvider (react-toastify)
+    shadcnui/       # shadcn primitives (button, input, input-group, field, card, toast, ...)
   hooks/            # Custom hooks (currently empty)
   lib/
+    auth.ts         # Better Auth server config (prismaAdapter + nextCookies)
+    auth-client.ts  # createAuthClient from better-auth/react
+    auth-errors.ts  # error code -> friendly message map
     dbClient/       # Prisma singleton with libSQL adapter
     env/            # serverEnv.ts, clientEnv.ts (t3-env)
     fonts.ts        # next/font (Geist, Inter)
     types.ts        # LayoutProps
     utils.ts        # cn() helper (clsx + tailwind-merge)
+    zodSchema.ts    # signInSchema / signUpSchema (zod)
   server/           # API routes placeholder (empty)
 generated/prisma/   # Prisma client output (gitignored)
+prisma/migrations/  # DB migrations (committed); prisma/dev.db is gitignored
 public/uploads/     # User uploads (all files ignored except .gitkeep)
 ```
 
@@ -63,6 +75,15 @@ public/uploads/     # User uploads (all files ignored except .gitkeep)
 
 - **ESLint**: Locked at eslint@9.x until `eslint-plugin-react` ships v10 support. Do NOT bump.
 - **TypeScript**: Currently ^5.9. TS 7.0 (Go-native compiler) blocked until typescript-eslint API stabilizes (~Oct 2026). Do not migrate.
+
+## Better Auth + Prisma gotchas
+
+- **CLI**: Run `better-auth` CLI with **node** (`node node_modules/@better-auth/cli/dist/index.mjs`), NOT `bunx`. On Windows, bun's extraction can drop files in the CLI's nested `kysely` copy. Fix: copy the complete `kysely` package from `node_modules/@better-auth/core/node_modules/kysely` into `node_modules/@better-auth/cli/node_modules/better-auth/node_modules/kysely`.
+- **Schema regeneration**: `node node_modules/@better-auth/cli/dist/index.mjs generate --output prisma/schema.prisma` then `bun prisma migrate dev`. Run `bun prisma generate` before the CLI if `generated/prisma` is missing.
+- **Adapter**: `prismaAdapter(prisma, { provider: "sqlite" })` from `better-auth/adapters/prisma`. Requires `@better-auth/prisma-adapter` installed.
+- **RSC sessions**: `nextCookies()` plugin is required for server components; session is read via `auth.api.getSession({ headers: await headers() })`.
+- **Auth errors**: Map `error.code` → friendly message in `src/lib/auth-errors.ts`.
+- **Env**: `BETTER_AUTH_SECRET` (min 32 chars) + `BETTER_AUTH_URL` in `.env`, declared in `serverEnv.ts`.
 
 ## Form patterns
 

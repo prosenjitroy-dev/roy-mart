@@ -1,4 +1,5 @@
 import Header from "@/components/Layout/Header";
+import SessionPanel from "@/components/auth/SessionPanel";
 import ToastButton from "@/components/ToastButton";
 import { Metadata } from "next";
 
@@ -13,12 +14,13 @@ const page = () => {
       <Header />
 
       <main className="grid h-dvh place-items-center">
-        <section className="space-y-4 text-center">
+        <section className="flex flex-col items-center gap-4 text-center">
           <h1 className="text-5xl font-semibold">Next.js Starter Fullstack</h1>
           <h2 className="text-3xl">
             Production grade Fullstack Next.js starter template
           </h2>
 
+          <SessionPanel />
           <ToastButton />
         </section>
       </main>
